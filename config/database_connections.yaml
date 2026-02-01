@@ -1,0 +1,71 @@
+# Database Connection Configuration
+# Copy this file to 'connections.yaml' and fill in your credentials
+# Never commit actual credentials to version control!
+
+databases:
+  # Legacy System (source)
+  legacy:
+    type: "postgresql"  # Options: postgresql, mysql, sqlserver, oracle
+    host: "legacy-db-hostname"
+    port: 5432
+    database: "legacy_database"
+    username: "${LEGACY_DB_USER}"  # Use environment variables for security
+    password: "${LEGACY_DB_PASSWORD}"
+    schema: "public"
+  
+  # Cloud Data Warehouse (target)
+  cloud:
+    type: "bigquery"  # Options: bigquery, snowflake, redshift, synapse
+    project: "your-gcp-project"
+    dataset: "transformed_data"
+    credentials_path: "${GOOGLE_APPLICATION_CREDENTIALS}"  # Service account key path
+    # For Snowflake:
+    # account: "your-account.snowflakecomputing.com"
+    # warehouse: "COMPUTE_WH"
+    # role: "DATA_VALIDATOR"
+  
+  # Validation Results Database (optional)
+  results:
+    type: "sqlite"
+    database: "validation_results.db"  # Local file for storing results
+
+# Validation Settings
+settings:
+  default_sample_size: 1000
+  acceptable_variance_percent: 0.01  # 0.01% variance allowed
+  enable_data_profiling: true
+  parallel_validation_threads: 4
+  
+# Table Mappings (Map legacy tables to cloud tables)
+table_mappings:
+  - legacy_table: "customer_orders"
+    cloud_table: "transformed_orders"
+    primary_key: "order_id"
+    
+  - legacy_table: "customers"
+    cloud_table: "dim_customers"
+    primary_key: "customer_id"
+    
+  - legacy_table: "products"
+    cloud_table: "dim_products"
+    primary_key: "product_sku"
+
+# Validation Rules
+validation_rules:
+  row_count:
+    enabled: true
+    threshold_percent: 0.1  # Allow 0.1% row count difference
+    
+  data_type:
+    enabled: true
+    
+  null_check:
+    enabled: true
+    critical_columns: ["customer_email", "order_amount"]
+    
+  referential_integrity:
+    enabled: true
+    relationships:
+      - parent_table: "customers"
+        child_table: "customer_orders"
+        foreign_key: "customer_id"
