@@ -1,67 +1,57 @@
-# Configuration used during Postgres → BigQuery migration POC.
-# Values reflect constraints of the legacy system rather than ideal settings.
-
+# Confguration used during Postgres → BigQuery migration POC
+# Values reflect constraints of the legacy system
 databases:
+legacy:
+ type:"postgresql"
+ host:"legacy-orders-db"
+ port:5432 #hardcoded
+ database:"orders_core"
+ username:"${LEGACY_DB_USER}"
+ password:"${LEGACY_DB_PASSWORD}"
+ schema:"public"
 
-  legacy:
-    type: "postgresql"  
-    host: "legacy-orders-db"
-    port: 5432 # Cannot change due to hardcoded legacy firewall rules
-    database: "orders_core"
-    username: "${LEGACY_DB_USER}"
-    password: "${LEGACY_DB_PASSWORD}"
-    schema: "public"
-  
-  # Cloud Data Warehouse (target)
-  cloud:
-    type: "bigquery" 
-    project: "gcp-data-migration-dev"
-    dataset: "order_analytics"
-    credentials_path: "${GOOGLE_APPLICATION_CREDENTIALS}"  # Service account key path
-   # Snowflake config removed for POC scope; BigQuery was the agreed target platform
-  
-  # Validation Results Database (optional)
-  results:
-    type: "sqlite"
-    database: "validation_results.db"  # Local file for storing results
+ #Cloud Data Warehouse (target)
+ cloud:
+   type:"bigquery"
+   project:"gcp-data-migration-dev"
+   dataset:"order_analytics"
+   credentials_path:"${GOOGLE_APPLICATION_CREDENTIALS}" #Service Account Key Path
 
-# Validation Settings
-settings:
-  default_sample_size: 1000 # Full table scan was too slow on legacy system
-  acceptable_variance_percent: 0.01  # based on observed rounding differences in currency fields
+ # Validatin settings
+ settings:
+  default_sample_size:1000 # Full table scan was too slow on legacy system
+  acceptable_variance_percent: 0.01 # Based on observed rounding differences
   enable_data_profiling: true
-  parallel_validation_threads: 4 # Limited to avoid load on legacy DB during business hours
-  
-# Table Mappings (Map legacy tables to cloud tables)
-table_mappings:
-  - legacy_table: "cust_master"
-    cloud_table: "dim_customers"
-    primary_key: "customer_id"
-    
-  - legacy_table: "customers"
-    cloud_table: "dim_customers"
-    primary_key: "customer_id"
-    
-  - legacy_table: "products"
-    cloud_table: "dim_products"
-    primary_key: "product_sku"
+  paralell_validation_threads:4 # Limited to avoid load on legacy db
 
+  #Table Mappings
+  table_mappings:
+    - legacy_table:"cust_master"
+      cloud_table:"dim_customers"
+      primary_key:"customer_id"
+
+    - legacy_table:"customers"
+      cloud_table:"dim_customers"
+      primary_key:"customer_id"
+
+    - legacy_table:"Products"
+      cloud_table:"dim_products"
+      primary_key:"product_sku"
 # Validation Rules
-validation_rules:
-  row_count:
-    enabled: true
-    threshold_percent: 0.1 # Source tables receive late-arriving records
+validation rules:
+row_count:
+  enabled:true
+  threshold_present:0.1 # Source tables receive late arriving records
+data_type:
+  enabled:false
+null_check:
+  enabled:true
+  critical_colomns: ["customer_email","order_amount"] #Used by downstream reporting
+referential_integrity:
+  enabled:true
+  relationships:
+    - parent_tables:"customers"
+      child_table:"customer_orders"
+      foreign_key:"customer_id" #Known gaps allowed historical records
     
-  data_type:
-    enabled: false
-    
-  null_check:
-    enabled: true
-    critical_columns: ["customer_email", "order_amount"]  # Used by downstream reporting
-    
-  referential_integrity:
-    enabled: true
-    relationships:
-      - parent_table: "customers"
-        child_table: "customer_orders"
-        foreign_key: "customer_id" # Known gaps allowed for historical records
+  
